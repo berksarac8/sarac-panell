@@ -1,20 +1,69 @@
-export default function OdemelerPage() {
-  return (
-    <div className="px-4 lg:px-8 py-6 lg:py-8 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Ödemeler</h1>
-        <p className="text-sm text-ink-soft mt-1">Çek, fatura, taksit takibi</p>
-      </div>
+import Link from 'next/link'
+import { listOdemeler, listKategoriler } from '@/lib/actions/odemeler'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { OdemelerListe } from './OdemelerListe'
+import { FiltreCubugu } from './FiltreCubugu'
+import type { OdemeDurum } from '@/types/odemeler'
 
-      <div className="card-modern p-8 text-center">
-        <div className="w-12 h-12 rounded-xl brand-gradient mx-auto mb-4 flex items-center justify-center text-white text-xl">
-          🚧
-        </div>
-        <h2 className="text-lg font-semibold mb-1">Yapım aşamasında</h2>
-        <p className="text-sm text-ink-muted">
-          Liste + Takvim sekmeleri, tek seferlik ve tekrarlayan ödeme dialog&apos;ları Plan 2&apos;de gelecek.
-        </p>
-      </div>
+type SearchParams = {
+  kategori?: string
+  durum?: string
+  bas?: string
+  bit?: string
+  q?: string
+}
+
+export default async function OdemelerPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>
+}) {
+  const sp = await searchParams
+
+  const kategoriIds = sp.kategori?.split(',').filter(Boolean) ?? []
+  const durumlar = (sp.durum?.split(',').filter(Boolean) ?? []) as OdemeDurum[]
+  const bas = sp.bas || null
+  const bit = sp.bit || null
+  const q = sp.q || null
+
+  const [odemelerRes, katsRes] = await Promise.all([
+    listOdemeler({
+      kategori_ids: kategoriIds.length ? kategoriIds : undefined,
+      tarih_baslangic: bas,
+      tarih_bitis: bit,
+      arama: q,
+    }),
+    listKategoriler(),
+  ])
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Ödemeler</h1>
+      </header>
+
+      <Tabs defaultValue="liste">
+        <TabsList>
+          <TabsTrigger value="liste" asChild>
+            <Link href="/odemeler">Liste</Link>
+          </TabsTrigger>
+          <TabsTrigger value="takvim" asChild>
+            <Link href="/odemeler/takvim">Takvim</Link>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <FiltreCubugu kategoriler={katsRes.data} />
+
+      {odemelerRes.error && (
+        <p className="text-sm text-rose-600">Hata: {odemelerRes.error}</p>
+      )}
+
+      <OdemelerListe
+        odemeler={odemelerRes.data}
+        kategoriler={katsRes.data}
+        durumFiltresi={durumlar}
+      />
     </div>
   )
 }
