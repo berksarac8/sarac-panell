@@ -16,6 +16,8 @@ const items: Item[] = [
   { href: '/odemeler',  label: 'Ödemeler',  icon: '💳' },
   { href: '/suru',      label: 'Sürü',      icon: '🐔' },
   { href: '/olaylar',   label: 'Olaylar',   icon: '📋' },
+  { href: '/stok',      label: 'Stok',      icon: '📦' },
+  { href: '/ayarlar',   label: 'Ayarlar',   icon: '⚙️' },
 ]
 
 function initials(name: string) {
