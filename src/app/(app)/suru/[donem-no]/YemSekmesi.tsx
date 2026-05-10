@@ -15,7 +15,7 @@ export function YemSekmesi({ donemId, yemler }: { donemId: string; yemler: SuruY
     if (!confirm('Bu yem kaydını silmek istediğine emin misin?')) return
     startTransition(async () => {
       const res = await deleteYem(id)
-      if (res.error) {
+      if ('error' in res && res.error) {
         alert(res.error)
         return
       }

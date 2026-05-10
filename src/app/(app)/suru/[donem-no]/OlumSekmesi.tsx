@@ -20,7 +20,7 @@ export function OlumSekmesi({
     if (!confirm('Bu ölüm kaydını silmek istediğine emin misin?')) return
     startTransition(async () => {
       const res = await deleteOlum(id)
-      if (res.error) {
+      if ('error' in res && res.error) {
         alert(res.error)
         return
       }

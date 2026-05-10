@@ -47,7 +47,7 @@ export function YemDialog({ donemId, trigger, duzenle = null }: Props) {
       const res = duzenle
         ? await updateYem(duzenle.id, formData)
         : await addYem(donemId, formData)
-      if (res.error) {
+      if ('error' in res && res.error) {
         setHata(res.error)
         return
       }

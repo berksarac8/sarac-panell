@@ -44,7 +44,7 @@ export function OlumDialog({ donemId, trigger, duzenle = null }: Props) {
       const res = duzenle
         ? await updateOlum(duzenle.id, formData)
         : await addOlum(donemId, formData)
-      if (res.error) {
+      if ('error' in res && res.error) {
         setHata(res.error)
         return
       }

@@ -46,7 +46,7 @@ export function TartiDialog({ donemId, trigger, duzenle = null }: Props) {
       const res = duzenle
         ? await updateTarti(duzenle.id, formData)
         : await addTarti(donemId, formData)
-      if (res.error) {
+      if ('error' in res && res.error) {
         setHata(res.error)
         return
       }

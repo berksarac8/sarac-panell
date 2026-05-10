@@ -41,7 +41,7 @@ export function YeniSuruDialog({ trigger }: Props) {
 
     startTransition(async () => {
       const res = await createSuruDonem(formData)
-      if (res.error) {
+      if ('error' in res && res.error) {
         setHata(res.error)
         return
       }

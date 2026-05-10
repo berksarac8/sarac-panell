@@ -20,7 +20,7 @@ export function TartiSekmesi({
     if (!confirm('Bu tartı kaydını silmek istediğine emin misin?')) return
     startTransition(async () => {
       const res = await deleteTarti(id)
-      if (res.error) {
+      if ('error' in res && res.error) {
         alert(res.error)
         return
       }

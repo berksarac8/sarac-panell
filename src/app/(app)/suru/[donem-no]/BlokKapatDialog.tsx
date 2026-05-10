@@ -37,7 +37,7 @@ export function BlokKapatDialog({ blok, trigger }: Props) {
 
     startTransition(async () => {
       const res = await kapatBlok(blok.id, formData)
-      if (res.error) {
+      if ('error' in res && res.error) {
         setHata(res.error)
         return
       }
