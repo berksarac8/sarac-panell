@@ -46,7 +46,7 @@ export function YeniSuruDialog({ trigger }: Props) {
         return
       }
       setOpen(false)
-      if (res.donem_no) {
+      if ('donem_no' in res && res.donem_no) {
         router.push(`/suru/${res.donem_no}`)
       } else {
         router.refresh()
