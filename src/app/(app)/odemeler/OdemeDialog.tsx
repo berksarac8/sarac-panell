@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { createOdeme, updateOdeme, createKategori } from '@/lib/actions/odemeler'
 import type { Odeme, OdemeKategori } from '@/types/odemeler'
@@ -24,7 +24,9 @@ export function OdemeDialog({
   const [open, setOpen] = useState(defaultOpen)
   const [pending, startTransition] = useTransition()
   const [hata, setHata] = useState<string | null>(null)
-  const [kats, setKats] = useState<OdemeKategori[]>(kategoriler)
+  // "Yeni kategori" akışında lokal listeye eklemek için ekstra kategoriler
+  const [ekKats, setEkKats] = useState<OdemeKategori[]>([])
+  const kats = React.useMemo(() => [...kategoriler, ...ekKats], [kategoriler, ekKats])
   const [yeniKategoriMod, setYeniKategoriMod] = useState(false)
   const [yeniKategoriIsim, setYeniKategoriIsim] = useState('')
 
@@ -39,10 +41,6 @@ export function OdemeDialog({
     duzenle?.odeme_tarihi ?? new Date().toISOString().slice(0, 10)
   )
 
-  useEffect(() => {
-    setKats(kategoriler)
-  }, [kategoriler])
-
   async function ekleKategori() {
     if (!yeniKategoriIsim.trim()) return
     const fd = new FormData()
@@ -53,7 +51,7 @@ export function OdemeDialog({
       return
     }
     if ('data' in res && res.data) {
-      setKats([...kats, res.data])
+      setEkKats((prev) => [...prev, res.data!])
       setKategoriId(res.data.id)
     }
     setYeniKategoriIsim('')
