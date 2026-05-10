@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 type Item = {
   href: string
@@ -44,10 +44,15 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [lastPath, setLastPath] = useState(pathname)
 
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [pathname])
+  // Close mobile drawer when pathname changes (navigation).
+  // Using "store-previous-value during render" pattern from React docs
+  // (https://react.dev/learn/you-might-not-need-an-effect#adjusting-state-when-a-prop-changes).
+  if (lastPath !== pathname) {
+    setLastPath(pathname)
+    if (mobileOpen) setMobileOpen(false)
+  }
 
   return (
     <>
