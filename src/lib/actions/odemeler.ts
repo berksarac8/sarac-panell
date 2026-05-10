@@ -53,6 +53,48 @@ export async function listKategoriler() {
   return { error: null, data: data ?? [] }
 }
 
+/**
+ * Aylık rapor için: belirli ay aralığındaki tüm ödemeleri (filtresiz) döner.
+ * `ay` formatı: 'YYYY-MM'
+ */
+export async function getOdemelerForReport(ay: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Yetkisiz', data: [] as Odeme[] }
+
+  // 'YYYY-MM' → ay başı ve sonraki ay başı
+  const [yStr, mStr] = ay.split('-')
+  const y = Number(yStr)
+  const m = Number(mStr)
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) {
+    return { error: 'Geçersiz ay formatı', data: [] as Odeme[] }
+  }
+  const ayBasi = `${yStr}-${mStr.padStart(2, '0')}-01`
+  const sonrakiY = m === 12 ? y + 1 : y
+  const sonrakiM = m === 12 ? 1 : m + 1
+  const sonrakiAyBasi = `${sonrakiY}-${String(sonrakiM).padStart(2, '0')}-01`
+
+  const { data, error } = await supabase
+    .from('odemeler')
+    .select(ODEME_SELECT)
+    .gte('vade_tarihi', ayBasi)
+    .lt('vade_tarihi', sonrakiAyBasi)
+    .order('vade_tarihi', { ascending: true })
+
+  if (error) return { error: error.message, data: [] as Odeme[] }
+  return { error: null, data: (data ?? []) as unknown as Odeme[] }
+}
+
+/**
+ * Mevcut filtreyle eşleşen ödemeleri CSV export için döner.
+ * (Aslında `listOdemeler` ile aynı sorgu — semantik isim için ayrı action.)
+ */
+export async function getOdemelerForExport(filtre: OdemeFiltre = {}) {
+  return listOdemeler(filtre)
+}
+
 export async function createKategori(formData: FormData) {
   const supabase = await createClient()
   const {
