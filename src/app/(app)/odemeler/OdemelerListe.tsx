@@ -13,6 +13,7 @@ import { DurumBadge } from './DurumBadge'
 import { OdemeDialog } from './OdemeDialog'
 import { TekrarDialog } from './TekrarDialog'
 import { hesaplaDurum } from '@/lib/odemeler/durum'
+import { odemelerToCsv, downloadCsv } from '@/lib/odemeler/export'
 import { markPaid, deleteOdeme } from '@/lib/actions/odemeler'
 import type { Odeme, OdemeDurum, OdemeKategori } from '@/types/odemeler'
 
@@ -63,11 +64,26 @@ export function OdemelerListe({ odemeler, kategoriler, durumFiltresi }: Props) {
     })
   }
 
+  function csvIndir() {
+    const csv = odemelerToCsv(filtreli, bugun)
+    const today = new Date().toISOString().slice(0, 10)
+    downloadCsv(csv, `odemeler-${today}.csv`)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-2">
         <h2 className="text-lg font-semibold">Ödemeler ({filtreli.length})</h2>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={csvIndir}
+            disabled={filtreli.length === 0}
+            className="text-sm border px-3 py-1.5 rounded-md hover:bg-slate-50 disabled:opacity-50"
+            title="Görünen ödemeleri CSV olarak indir"
+          >
+            Excel İndir
+          </button>
           <TekrarDialog
             kategoriler={kategoriler}
             trigger={

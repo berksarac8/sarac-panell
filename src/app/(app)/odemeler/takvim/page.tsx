@@ -20,6 +20,9 @@ export default async function OdemeTakvimiPage() {
           <TabsTrigger value="takvim" asChild>
             <Link href="/odemeler/takvim">Takvim</Link>
           </TabsTrigger>
+          <TabsTrigger value="rapor" asChild>
+            <Link href="/odemeler/rapor">Rapor</Link>
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
