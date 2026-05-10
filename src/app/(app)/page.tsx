@@ -39,6 +39,7 @@ export default async function DashboardPage() {
         donemler={donemlerRes.data}
         aktifDonem={aktifDonemRefRes.data}
         aktifDonemId={dash.aktifDonem?.id ?? null}
+        aktifDonemGirisTarihi={dash.aktifDonem?.giris_tarihi ?? null}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

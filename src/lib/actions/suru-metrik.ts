@@ -227,6 +227,267 @@ export async function getBlokMetrikleri(
   return { error: null, data: metrikler }
 }
 
+// ============================================================================
+// Veri Gir — su + ölüm upsert (tek dialog)
+// ============================================================================
+
+type UpsertSonuc = {
+  ok?: true
+  error?: string
+  /** Hangi kayıtlar işlendi (UI feedback için) */
+  yapildi?: { su: 'insert' | 'update' | null; olum: 'insert' | 'update' | null }
+}
+
+/**
+ * Bir gün için su ve/veya ölüm girer (upsert).
+ *
+ * - suLitre verilirse: (donem_id, blok_no, gun_no) üzerinden suru_su kaydını
+ *   upsert eder. Mevcutsa update, yoksa insert.
+ * - olumAdet verilirse: (donem_id, blok_no, tarih) üzerinden suru_olum kaydını
+ *   upsert eder (suru_olum'da unique constraint yok; mantıksal upsert).
+ * - İkisi de null/undefined ise hata döner.
+ * - blokNo geçersizse hata.
+ */
+export async function upsertGunlukVeri(
+  donemId: string,
+  blokNo: 1 | 2 | 3,
+  tarih: string,
+  suLitre?: number | null,
+  olumAdet?: number | null,
+  olumSebep?: string | null
+): Promise<UpsertSonuc> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Yetkisiz' }
+
+  if (![1, 2, 3].includes(blokNo)) return { error: 'Geçersiz blok' }
+  if (!tarih) return { error: 'Tarih gerekli' }
+
+  const suGirildi = suLitre !== null && suLitre !== undefined
+  const olumGirildi = olumAdet !== null && olumAdet !== undefined
+
+  if (!suGirildi && !olumGirildi) {
+    return { error: 'En az bir alan girin (su veya ölüm)' }
+  }
+
+  if (suGirildi && (!Number.isFinite(suLitre) || (suLitre as number) < 0)) {
+    return { error: 'Su litre geçersiz' }
+  }
+  if (
+    olumGirildi &&
+    (!Number.isInteger(olumAdet) || (olumAdet as number) < 0)
+  ) {
+    return { error: 'Ölüm adedi geçersiz' }
+  }
+
+  const donem = await girisTarihiAl(donemId)
+  if (donem.error || !donem.giris_tarihi) {
+    return { error: donem.error ?? 'Dönem bulunamadı' }
+  }
+
+  const gunNo = gunNoHesapla(donem.giris_tarihi, tarih)
+  if (suGirildi && (gunNo < 1 || gunNo > 44)) {
+    return {
+      error:
+        gunNo < 1
+          ? 'Tarih dönem giriş tarihinden önce olamaz'
+          : 'Bu tarih için referans yok (gün > 44)',
+    }
+  }
+
+  const yapildi: NonNullable<UpsertSonuc['yapildi']> = { su: null, olum: null }
+
+  // Su upsert
+  if (suGirildi) {
+    const { data: mevcut, error: selErr } = await supabase
+      .from('suru_su')
+      .select('id')
+      .eq('donem_id', donemId)
+      .eq('blok_no', blokNo)
+      .eq('gun_no', gunNo)
+      .maybeSingle()
+    if (selErr) return { error: selErr.message }
+
+    if (mevcut) {
+      const { error } = await supabase
+        .from('suru_su')
+        .update({ su_litre: suLitre as number })
+        .eq('id', (mevcut as { id: string }).id)
+      if (error) return { error: error.message }
+      yapildi.su = 'update'
+    } else {
+      const { error } = await supabase.from('suru_su').insert({
+        donem_id: donemId,
+        blok_no: blokNo,
+        tarih,
+        gun_no: gunNo,
+        su_litre: suLitre as number,
+      })
+      if (error) return { error: error.message }
+      yapildi.su = 'insert'
+    }
+  }
+
+  // Ölüm upsert (mantıksal, unique constraint yok)
+  if (olumGirildi) {
+    const { data: mevcutOlum, error: selErr } = await supabase
+      .from('suru_olum')
+      .select('id')
+      .eq('donem_id', donemId)
+      .eq('blok_no', blokNo)
+      .eq('tarih', tarih)
+      .maybeSingle()
+    if (selErr) return { error: selErr.message }
+
+    const sebepNorm = olumSebep && olumSebep.trim() ? olumSebep.trim() : null
+
+    if (mevcutOlum) {
+      const { error } = await supabase
+        .from('suru_olum')
+        .update({ adet: olumAdet as number, sebep: sebepNorm })
+        .eq('id', (mevcutOlum as { id: string }).id)
+      if (error) return { error: error.message }
+      yapildi.olum = 'update'
+    } else {
+      const { error } = await supabase.from('suru_olum').insert({
+        donem_id: donemId,
+        blok_no: blokNo,
+        tarih,
+        adet: olumAdet as number,
+        sebep: sebepNorm,
+      })
+      if (error) return { error: error.message }
+      yapildi.olum = 'insert'
+    }
+  }
+
+  await revalidateDonem(donem.donem_no)
+  return { ok: true, yapildi }
+}
+
+/**
+ * Aktif dönem için "eksik gün" tespiti.
+ *
+ * Her blok × her gün (1 .. gunSayisi) için: o gün su girilmiş mi, ölüm
+ * girilmiş mi (blok-spesifik veya genel) kontrol edilir. En az biri eksikse
+ * o satır döner.
+ *
+ * "Bugün" dahil edilmez (henüz tamamlanmamış gün eksik sayılmaz) — yani
+ * gun_no ≤ gunSayisi (bugün dahil değil, yani dünden geriye kadar).
+ */
+export type EksikGunSatir = {
+  blokNo: 1 | 2 | 3
+  gunNo: number
+  tarih: string
+  suEksik: boolean
+  olumEksik: boolean
+}
+
+export async function getEksikGunler(donemId: string): Promise<{
+  error: string | null
+  data: EksikGunSatir[]
+  toplamGun: number
+}> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Yetkisiz', data: [], toplamGun: 0 }
+
+  // Dönem + bloklar
+  const donemRes = await supabase
+    .from('suru_donemleri')
+    .select('id, giris_tarihi')
+    .eq('id', donemId)
+    .maybeSingle()
+  if (donemRes.error) return { error: donemRes.error.message, data: [], toplamGun: 0 }
+  if (!donemRes.data) return { error: 'Dönem bulunamadı', data: [], toplamGun: 0 }
+  const girisTarihi = (donemRes.data as { giris_tarihi: string }).giris_tarihi
+
+  const bloklarRes = await supabase
+    .from('suru_bloklari')
+    .select('blok_no, cikis_tarihi')
+    .eq('donem_id', donemId)
+  if (bloklarRes.error) return { error: bloklarRes.error.message, data: [], toplamGun: 0 }
+
+  const bloklar = (bloklarRes.data ?? []) as { blok_no: 1 | 2 | 3; cikis_tarihi: string | null }[]
+
+  // Bugün (UTC bazında) — bugün dahil değil
+  const bugun = new Date()
+  const bugunIso = bugun.toISOString().slice(0, 10)
+  const gunSayisi = gunNoHesapla(girisTarihi, bugunIso) - 1 // dünden geriye
+
+  if (gunSayisi < 1) {
+    return { error: null, data: [], toplamGun: 0 }
+  }
+
+  // Tüm su ve ölüm verisi (dönem geneli) — sonra blok+gün üzerinden kontrol
+  const [suRes, olumRes] = await Promise.all([
+    supabase
+      .from('suru_su')
+      .select('blok_no, gun_no')
+      .eq('donem_id', donemId),
+    supabase
+      .from('suru_olum')
+      .select('blok_no, tarih')
+      .eq('donem_id', donemId),
+  ])
+  if (suRes.error) return { error: suRes.error.message, data: [], toplamGun: gunSayisi }
+  if (olumRes.error) return { error: olumRes.error.message, data: [], toplamGun: gunSayisi }
+
+  const suSet = new Set<string>() // key: `${blok_no}-${gun_no}`
+  for (const r of (suRes.data ?? []) as { blok_no: number; gun_no: number }[]) {
+    suSet.add(`${r.blok_no}-${r.gun_no}`)
+  }
+  // Ölüm için: tarih → gun_no; blok null ise "genel" sayılır → tüm bloklar için karşılanır
+  const olumByGun = new Map<number, Set<number | 'genel'>>() // gun_no → bloklar
+  for (const r of (olumRes.data ?? []) as { blok_no: number | null; tarih: string }[]) {
+    const gun = gunNoHesapla(girisTarihi, r.tarih)
+    if (gun < 1) continue
+    const set = olumByGun.get(gun) ?? new Set<number | 'genel'>()
+    set.add(r.blok_no ?? 'genel')
+    olumByGun.set(gun, set)
+  }
+
+  function tarihHesapla(gunNo: number): string {
+    const d = new Date(girisTarihi + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() + (gunNo - 1))
+    return d.toISOString().slice(0, 10)
+  }
+
+  const eksikler: EksikGunSatir[] = []
+  for (const blok of bloklar) {
+    // Blok kapandıysa kapanış sonrasını sayma
+    let blokMaxGun = gunSayisi
+    if (blok.cikis_tarihi) {
+      const kapanis = gunNoHesapla(girisTarihi, blok.cikis_tarihi)
+      blokMaxGun = Math.min(gunSayisi, kapanis - 1)
+    }
+
+    for (let g = 1; g <= blokMaxGun; g++) {
+      const suEksik = !suSet.has(`${blok.blok_no}-${g}`)
+      const olumSet = olumByGun.get(g)
+      const olumEksik = !(olumSet && (olumSet.has(blok.blok_no) || olumSet.has('genel')))
+      if (suEksik || olumEksik) {
+        eksikler.push({
+          blokNo: blok.blok_no,
+          gunNo: g,
+          tarih: tarihHesapla(g),
+          suEksik,
+          olumEksik,
+        })
+      }
+    }
+  }
+
+  // Önce blok, sonra gun_no'ya göre sırala
+  eksikler.sort((a, b) => (a.blokNo - b.blokNo) || (a.gunNo - b.gunNo))
+
+  return { error: null, data: eksikler, toplamGun: gunSayisi }
+}
+
 /**
  * Bir blok için tüm su kayıtlarını döner (UI listesi için).
  */

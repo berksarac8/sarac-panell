@@ -9,10 +9,13 @@ type Props = {
   kategoriler: OlayKategori[]
   donemler: SuruDonemRef[]
   aktifDonem: SuruDonemRef | null
-  trigger: React.ReactNode
+  trigger?: React.ReactNode
   duzenle?: CiftlikOlay | null
   onClose?: () => void
   defaultOpen?: boolean
+  /** Controlled mode */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function OlayDialog({
@@ -23,8 +26,15 @@ export function OlayDialog({
   duzenle = null,
   onClose,
   defaultOpen = false,
+  open: openProp,
+  onOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const open = openProp ?? internalOpen
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v)
+    if (openProp === undefined) setInternalOpen(v)
+  }
   const [pending, startTransition] = useTransition()
   const [hata, setHata] = useState<string | null>(null)
   const [kats, setKats] = useState<OlayKategori[]>(kategoriler)
@@ -100,7 +110,7 @@ export function OlayDialog({
         if (!v) onClose?.()
       }}
     >
-      <DialogTrigger render={trigger as React.ReactElement} />
+      {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{duzenle ? 'Olayı Düzenle' : 'Yeni Olay'}</DialogTitle>

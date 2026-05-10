@@ -15,13 +15,27 @@ import type { SuruTarti } from '@/types/suru'
 
 type Props = {
   donemId: string
-  trigger: React.ReactElement
+  trigger?: React.ReactElement
   duzenle?: SuruTarti | null
+  /** Controlled mode: open state'i dışarıdan yönetmek için */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function TartiDialog({ donemId, trigger, duzenle = null }: Props) {
+export function TartiDialog({
+  donemId,
+  trigger,
+  duzenle = null,
+  open: openProp,
+  onOpenChange,
+}: Props) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = openProp ?? internalOpen
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v)
+    if (openProp === undefined) setInternalOpen(v)
+  }
   const [pending, startTransition] = useTransition()
   const [hata, setHata] = useState<string | null>(null)
 
@@ -57,7 +71,7 @@ export function TartiDialog({ donemId, trigger, duzenle = null }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{duzenle ? 'Tartıyı Düzenle' : 'Yeni Tartı'}</DialogTitle>

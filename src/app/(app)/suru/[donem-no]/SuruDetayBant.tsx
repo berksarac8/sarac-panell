@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import type { SuruDonem, SuruBlok } from '@/types/suru'
 import { BlokKapatDialog } from './BlokKapatDialog'
+import { VeriGirButton } from './VeriGirButton'
 
 function gunSayisi(girisTarihi: string): number {
   const giris = new Date(girisTarihi + 'T00:00:00')
@@ -39,6 +40,12 @@ export function SuruDetayBant({
           </div>
         </div>
       </div>
+
+      {donem.durum === 'aktif' && (
+        <div className="mb-3">
+          <VeriGirButton donemId={donem.id} girisTarihi={donem.giris_tarihi} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {sirali.map((b) => (
