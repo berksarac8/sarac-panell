@@ -4,6 +4,7 @@ import { HizliEylemler } from './HizliEylemler'
 import { AktifSuruWidget } from './AktifSuruWidget'
 import { AcilOdemelerWidget } from './AcilOdemelerWidget'
 import { SonOlaylarWidget } from './SonOlaylarWidget'
+import { EksikGunlerWidget } from './EksikGunlerWidget'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,10 @@ export default async function DashboardPage() {
           <SonOlaylarWidget olaylar={dash.sonOlaylar} />
         </div>
         <div className="space-y-4">
+          <EksikGunlerWidget
+            donem={dash.aktifDonem}
+            eksikGunler={dash.eksikGunler}
+          />
           <AcilOdemelerWidget odemeler={dash.acilOdemeler} />
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { hesaplaDurum } from '@/lib/odemeler/durum'
+import { getEksikGunler, type EksikGunSatir } from '@/lib/actions/suru-metrik'
 import type { SuruDonem } from '@/types/suru'
 import type { Odeme, OdemeDurum, OdemeKategori } from '@/types/odemeler'
 import type { CiftlikOlay } from '@/types/olaylar'
@@ -21,6 +22,12 @@ export type DashboardData = {
   sonOlaylar: CiftlikOlay[]
   // Form dialog'larını seedlemek için
   odemeKategorileri: OdemeKategori[]
+  // Eksik gün widget'ı için (aktif sürü yoksa null)
+  eksikGunler: {
+    error: string | null
+    data: EksikGunSatir[]
+    toplamGun: number
+  } | null
 }
 
 const DONEM_SELECT = `
@@ -54,6 +61,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       acilOdemeler: [],
       sonOlaylar: [],
       odemeKategorileri: [],
+      eksikGunler: null,
     }
   }
 
@@ -94,13 +102,15 @@ export async function getDashboardData(): Promise<DashboardData> {
       acilOdemeler: [],
       sonOlaylar: [],
       odemeKategorileri: [],
+      eksikGunler: null,
     }
   }
 
   const aktifDonem = (donemRes.data as unknown as SuruDonem | null) ?? null
 
-  // Aktif dönem varsa son tartı + son 7 gün ölüm toplamı
+  // Aktif dönem varsa son tartı + son 7 gün ölüm toplamı + eksik günler
   let donemOzet: DashboardData['donemOzet'] = null
+  let eksikGunler: DashboardData['eksikGunler'] = null
   if (aktifDonem) {
     const [tartiRes, olumRes] = await Promise.all([
       supabase
@@ -128,6 +138,8 @@ export async function getDashboardData(): Promise<DashboardData> {
       sonTartiTarih: tartiRes.data?.tarih ?? null,
       son7GunOlumToplam,
     }
+
+    eksikGunler = await getEksikGunler(aktifDonem.id)
   }
 
   const odemeler = (odemelerRes.data ?? []) as unknown as Odeme[]
@@ -150,5 +162,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     acilOdemeler,
     sonOlaylar,
     odemeKategorileri,
+    eksikGunler,
   }
 }
