@@ -4,14 +4,18 @@ import * as React from 'react'
 import { useState, useTransition } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { createOdeme, updateOdeme, createKategori } from '@/lib/actions/odemeler'
+import { BelgeYonetici } from './BelgeYonetici'
 import type { Odeme, OdemeKategori } from '@/types/odemeler'
 
 type Props = {
   kategoriler: OdemeKategori[]
-  trigger: React.ReactNode
+  trigger?: React.ReactNode
   duzenle?: Odeme | null
   onClose?: () => void
   defaultOpen?: boolean
+  /** Controlled mode */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function OdemeDialog({
@@ -20,8 +24,15 @@ export function OdemeDialog({
   duzenle = null,
   onClose,
   defaultOpen = false,
+  open: openProp,
+  onOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [internalOpen, setInternalOpen] = useState(defaultOpen)
+  const open = openProp ?? internalOpen
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v)
+    if (openProp === undefined) setInternalOpen(v)
+  }
   const [pending, startTransition] = useTransition()
   const [hata, setHata] = useState<string | null>(null)
   // "Yeni kategori" akışında lokal listeye eklemek için ekstra kategoriler
@@ -88,7 +99,7 @@ export function OdemeDialog({
         if (!v) onClose?.()
       }}
     >
-      <DialogTrigger render={trigger as React.ReactElement} />
+      {trigger && <DialogTrigger render={trigger as React.ReactElement} />}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{duzenle ? 'Ödemeyi Düzenle' : 'Yeni Ödeme'}</DialogTitle>
@@ -222,6 +233,12 @@ export function OdemeDialog({
           )}
 
           {hata && <p className="text-sm text-rose-600">{hata}</p>}
+
+          {duzenle && (
+            <div className="border-t pt-3">
+              <BelgeYonetici odemeId={duzenle.id} />
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <button

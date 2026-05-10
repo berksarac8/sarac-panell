@@ -58,3 +58,14 @@ export type TekrarInput = OdemeInput & {
   periyot: OdemeTekrarPeriyot
   tekrar_sayisi: number
 }
+
+export type OdemeBelge = {
+  id: string
+  odeme_id: string
+  dosya_adi: string
+  storage_path: string
+  mime_type: string | null
+  boyut: number
+  yukleyen: string | null
+  created_at: string
+}

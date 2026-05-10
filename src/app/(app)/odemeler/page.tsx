@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { listOdemeler, listKategoriler } from '@/lib/actions/odemeler'
+import { getBelgeSayilari } from '@/lib/actions/odeme-belgeler'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { OdemelerListe } from './OdemelerListe'
 import { FiltreCubugu } from './FiltreCubugu'
@@ -36,6 +37,9 @@ export default async function OdemelerPage({
     listKategoriler(),
   ])
 
+  const belgeSayiRes = await getBelgeSayilari(odemelerRes.data.map((o) => o.id))
+  const belgeSayilari = belgeSayiRes.data
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
       <header className="flex items-center justify-between">
@@ -66,6 +70,7 @@ export default async function OdemelerPage({
         odemeler={odemelerRes.data}
         kategoriler={katsRes.data}
         durumFiltresi={durumlar}
+        belgeSayilari={belgeSayilari}
       />
     </div>
   )

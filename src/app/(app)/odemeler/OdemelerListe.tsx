@@ -21,9 +21,15 @@ type Props = {
   odemeler: Odeme[]
   kategoriler: OdemeKategori[]
   durumFiltresi: OdemeDurum[]
+  belgeSayilari?: Record<string, number>
 }
 
-export function OdemelerListe({ odemeler, kategoriler, durumFiltresi }: Props) {
+export function OdemelerListe({
+  odemeler,
+  kategoriler,
+  durumFiltresi,
+  belgeSayilari = {},
+}: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [duzenle, setDuzenle] = useState<Odeme | null>(null)
@@ -130,7 +136,20 @@ export function OdemelerListe({ odemeler, kategoriler, durumFiltresi }: Props) {
                 <td className="px-3 py-2">
                   <DurumBadge durum={o._durum} />
                 </td>
-                <td className="px-3 py-2 font-medium">{o.aciklama}</td>
+                <td className="px-3 py-2 font-medium">
+                  <span className="inline-flex items-center gap-1">
+                    {o.aciklama}
+                    {belgeSayilari[o.id] > 0 && (
+                      <span
+                        title={`${belgeSayilari[o.id]} belge ekli`}
+                        className="text-xs text-slate-500"
+                        aria-label={`${belgeSayilari[o.id]} belge ekli`}
+                      >
+                        📎{belgeSayilari[o.id]}
+                      </span>
+                    )}
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">{o.kategori?.isim ?? '—'}</td>
                 <td className="px-3 py-2 text-muted-foreground">{o.kime ?? '—'}</td>
                 <td className="px-3 py-2 text-right font-mono">
