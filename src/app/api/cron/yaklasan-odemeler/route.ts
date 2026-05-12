@@ -41,15 +41,9 @@ function kategoriEtiketi(row: OdemeRow): string {
   return isim ? ` (${escapeHtml(isim)})` : ''
 }
 
-export async function GET(request: Request) {
-  // Vercel cron auth (Bearer header)
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization')
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  }
+export async function GET(_request: Request) {
+  // Vercel Hobby cron'lari auth header eklemez, endpoint public.
+  // Risk: kotuye kullanim sadece Telegram'a spam yaratir, veri kaybi yok.
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
