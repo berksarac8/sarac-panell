@@ -29,8 +29,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Sarac'ta tek public path: /giris (şifre sıfırlama yok, davet yok)
-  const isPublicPath = request.nextUrl.pathname.startsWith('/giris')
+  // Public paths: /giris ve /api/cron/* (Vercel cron'lar auth header eklemiyor)
+  const path = request.nextUrl.pathname
+  const isPublicPath = path.startsWith('/giris') || path.startsWith('/api/cron/')
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()
